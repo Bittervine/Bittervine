@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A tested Lubuntu and RTL8723BS Wi-Fi fix for the Lenovo MIIX 3-1030, with a downloadable DKMS package, kernel-update guidance, diagnostics, and stress-test results.">
+  <title>Lubuntu on the Lenovo MIIX 3-1030</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17212b;
+      --muted: #52606d;
+      --paper: #fffdf8;
+      --panel: #ffffff;
+      --blue: #145da0;
+      --blue-dark: #0b426f;
+      --cyan: #dff5f7;
+      --green: #18794e;
+      --green-bg: #e9f8ef;
+      --amber: #8a4b08;
+      --amber-bg: #fff4d6;
+      --red: #9f2d20;
+      --red-bg: #fff0ed;
+      --line: #d9e1e8;
+      --shadow: 0 16px 40px rgba(31, 53, 73, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      overflow-x: hidden;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 0%, rgba(53, 167, 181, 0.18), transparent 28rem),
+        linear-gradient(180deg, #edf8fb 0, var(--paper) 34rem);
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.62;
+    }
+
+    a { color: var(--blue); }
+    a:hover { color: var(--blue-dark); }
+
+    .shell {
+      width: min(1080px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 22px 0;
+    }
+
+    .back-link {
+      color: var(--blue-dark);
+      font-weight: 750;
+      text-decoration: none;
+    }
+
+    .topbar nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 14px;
+      font-size: 0.92rem;
+    }
+
+    .topbar nav a { text-decoration: none; }
+
+    .hero {
+      min-width: 0;
+      padding: 54px clamp(24px, 5vw, 60px);
+      border: 1px solid rgba(20, 93, 160, 0.2);
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: var(--shadow);
+    }
+
+    .personal-note {
+      margin-bottom: 22px;
+      padding: clamp(24px, 4vw, 38px);
+      border: 1px solid #e6c989;
+      border-radius: 24px;
+      background: rgba(255, 249, 230, 0.94);
+      box-shadow: 0 12px 32px rgba(92, 64, 23, 0.1);
+    }
+
+    .note-label {
+      margin: 0 0 8px;
+      color: var(--amber);
+      font-size: 0.82rem;
+      font-weight: 850;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .personal-note h2 { margin-bottom: 18px; }
+    .personal-note p { max-width: 880px; }
+    .personal-note .signoff { margin-bottom: 0; font-weight: 750; }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 18px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--green-bg);
+      color: var(--green);
+      font-size: 0.86rem;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    h1, h2, h3 { line-height: 1.18; }
+
+    h1 {
+      max-width: 820px;
+      margin: 0;
+      font-size: clamp(2.35rem, 7vw, 5rem);
+      letter-spacing: -0.045em;
+    }
+
+    .lead {
+      max-width: 780px;
+      margin: 22px 0 0;
+      color: var(--muted);
+      font-size: clamp(1.06rem, 2.2vw, 1.28rem);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 10px 17px;
+      border: 2px solid var(--blue);
+      border-radius: 12px;
+      background: var(--blue);
+      color: white;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .button:hover { background: var(--blue-dark); color: white; }
+
+    .button.secondary {
+      background: white;
+      color: var(--blue-dark);
+    }
+
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 22px 0 0;
+    }
+
+    .fact {
+      min-width: 0;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.82);
+    }
+
+    .fact strong, .fact span { display: block; }
+    .fact span { margin-top: 3px; color: var(--muted); font-size: 0.9rem; }
+
+    main { padding: 46px 0 70px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 250px;
+      gap: 32px;
+      align-items: start;
+    }
+
+    .content { min-width: 0; }
+
+    .content > section {
+      margin-bottom: 26px;
+      padding: clamp(22px, 4vw, 36px);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: 0 8px 24px rgba(31, 53, 73, 0.06);
+    }
+
+    h2 { margin: 0 0 16px; font-size: clamp(1.5rem, 4vw, 2.15rem); }
+    h3 { margin: 28px 0 10px; font-size: 1.18rem; }
+    p { margin: 12px 0; }
+    ul, ol { padding-left: 1.35rem; }
+    li + li { margin-top: 8px; }
+
+    .toc {
+      position: sticky;
+      top: 20px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255,255,255,0.9);
+    }
+
+    .toc strong { display: block; margin-bottom: 10px; }
+    .toc a { display: block; padding: 5px 0; text-decoration: none; }
+
+    .callout {
+      padding: 18px 20px;
+      border-left: 5px solid var(--green);
+      border-radius: 12px;
+      background: var(--green-bg);
+    }
+
+    .callout.warning { border-color: var(--amber); background: var(--amber-bg); }
+    .callout.danger { border-color: var(--red); background: var(--red-bg); }
+    .callout strong { color: inherit; }
+
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .comparison > div {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    .comparison .bad { background: var(--red-bg); }
+    .comparison .good { background: var(--green-bg); }
+    .comparison h3 { margin-top: 0; }
+
+    code, pre { font-family: "Cascadia Code", Consolas, monospace; }
+
+    code {
+      padding: 0.12em 0.35em;
+      border-radius: 5px;
+      background: #edf2f6;
+      overflow-wrap: anywhere;
+    }
+
+    .breakable { overflow-wrap: anywhere; }
+
+    pre {
+      overflow-x: auto;
+      margin: 14px 0;
+      padding: 17px;
+      border: 1px solid #304354;
+      border-radius: 12px;
+      background: #17212b;
+      color: #eff6fb;
+      font-size: 0.88rem;
+      line-height: 1.55;
+    }
+
+    pre code { padding: 0; background: transparent; color: inherit; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 18px 0;
+      font-size: 0.94rem;
+    }
+
+    th, td {
+      padding: 12px;
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th { background: #edf6fb; }
+
+    details {
+      margin-top: 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fbfcfd;
+    }
+
+    summary { cursor: pointer; color: var(--blue-dark); font-weight: 800; }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .result {
+      padding: 16px;
+      border: 1px solid #b8dec8;
+      border-radius: 14px;
+      background: var(--green-bg);
+    }
+
+    .result strong { display: block; color: var(--green); font-size: 1.1rem; }
+
+    footer {
+      padding: 24px 0 46px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 820px) {
+      .facts { grid-template-columns: repeat(2, 1fr); }
+      .layout { grid-template-columns: minmax(0, 1fr); }
+      .toc { position: static; order: -1; }
+      .toc a { display: inline-block; margin-right: 12px; }
+    }
+
+    @media (max-width: 560px) {
+      .shell { width: calc(100% - 20px); max-width: none; }
+      .topbar { align-items: flex-start; }
+      .topbar nav { display: none; }
+      .hero { overflow: hidden; padding: 34px 22px; border-radius: 20px; }
+      .personal-note { padding: 24px 22px; border-radius: 20px; }
+      h1 { overflow-wrap: break-word; }
+      .actions { flex-direction: column; align-items: flex-start; }
+      .button { max-width: 100%; }
+      .facts, .comparison, .result-grid { grid-template-columns: 1fr; }
+      .content > section { padding: 21px; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <header class="shell">
+    <div class="topbar">
+      <a class="back-link" href="../">← Frovik.se</a>
+      <nav aria-label="Page sections">
+        <a href="#fix">The fix</a>
+        <a href="#install">Install</a>
+        <a href="#kernel-updates">Kernel updates</a>
+        <a href="#evidence">Evidence</a>
+        <a href="#sources">Sources</a>
+      </nav>
+    </div>
+
+    <section class="personal-note" aria-labelledby="personal-note-title">
+      <p class="note-label">Before the technical details</p>
+      <h2 id="personal-note-title">A note from CF</h2>
+      <p>Hi! Total honesty here…</p>
+
+      <p>I installed Lubuntu on my old, ready-for-the-electronics-recycling-bin Lenovo Miix 3. I did have to add a 32-bit UEFI bootloader file so the tablet's 32-bit firmware could start the 64-bit Lubuntu installer, but that was relatively simple. However, getting the network card operational wasn't so easy. In the end I thought, “Why can't AI do this for me?” So I set up an SSH service and made sure that ChatGPT's Codex could work on it via shaky Bluetooth tethering.</p>
+
+      <p>There was some back-and-forth, but in the end the AI did most of the work. In the end I asked it to set up this page in case it may help others trying to do the same thing, because even the AI struggled quite a bit with this.</p>
+
+      <p>So I really can't take much credit for this. The rest of this page is the AI speaking, not me.</p>
+      <p class="signoff">Cheers. /CF</p>
+    </section>
+
+    <section class="hero">
+      <p class="eyebrow">Confirmed on real hardware</p>
+      <h1>Lubuntu on the Lenovo MIIX 3-1030</h1>
+      <p class="lead">A reproducible fix for the RTL8723BS Wi-Fi failure where networks are visible, association may work, but outgoing traffic dies with SDIO CRC errors.</p>
+      <div class="actions">
+        <a class="button" href="downloads/r8723bs-miix3-dkms-1.1.tar.gz" download>Download tested DKMS package</a>
+        <a class="button secondary" href="patches/r8723bs-miix3-legacy-sdio.patch" download>Core kernel patch</a>
+        <a class="button secondary" href="r8723bs-miix3.conf" download>Modprobe config</a>
+      </div>
+    </section>
+
+    <div class="facts" aria-label="Tested hardware facts">
+      <div class="fact"><strong>Lenovo 80HV</strong><span>MIIX 3-1030 / Martini</span></div>
+      <div class="fact"><strong>024c:b723</strong><span>Realtek RTL8723BS SDIO</span></div>
+      <div class="fact"><strong>INT33BB:00, UID 2</strong><span>Intel Bay Trail SDIO host</span></div>
+      <div class="fact"><strong>7.0.0-28-generic</strong><span>Final tested Ubuntu kernel</span></div>
+    </div>
+  </header>
+
+  <main class="shell layout">
+    <div class="content">
+      <section id="summary">
+        <h2>Short version</h2>
+        <div class="callout">
+          <strong>The hardware was not broken.</strong> The card and host negotiated SDIO high-speed mode, but host-to-card CMD53 data writes were unreliable in that signaling mode. Lowering the clock alone was not enough. Clearing the card's high-speed-enable bit before the first Realtek I/O, switching the host to legacy timing, and running at 25 MHz fixed Wi-Fi completely.
+        </div>
+
+        <p>The base Lubuntu installation already reached the graphical login screen. We used the tablet's working Bluetooth PAN connection as a recovery and SSH channel while Wi-Fi was disabled. The temporarily missing network icon and hanging <code>ip</code>/<code>ifconfig</code> commands occurred only when an experimental SDIO path wedged the kernel; they returned to normal after that diagnostic was removed and the final fix was installed.</p>
+
+        <div class="comparison">
+          <div class="bad">
+            <h3>Failing state</h3>
+            <ul>
+              <li>CCCR speed register <code>0x03</code></li>
+              <li>Host timing mode <code>2</code> (high speed)</li>
+              <li>50 MHz—or 25 MHz with high-speed timing still active</li>
+              <li>CMD53 writes fail with <code>-EILSEQ</code> / data CRC errors</li>
+            </ul>
+          </div>
+          <div class="good">
+            <h3>Working state</h3>
+            <ul>
+              <li>CCCR speed register <code>0x01</code> (EHS cleared)</li>
+              <li>Host timing mode <code>0</code> (legacy)</li>
+              <li>25 MHz, four-bit, 3.30 V, push-pull</li>
+              <li>Normal CMD53 data transfer with no CRC errors</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="symptoms">
+        <h2>Recognizing this particular failure</h2>
+        <p>The confusing part was that Wi-Fi was not simply dead. The receive and transmit paths behaved very differently:</p>
+
+        <table>
+          <thead><tr><th>Observed behavior</th><th>What it proved</th></tr></thead>
+          <tbody>
+            <tr><td>Nearby SSIDs appeared in scans</td><td>Firmware execution, RF reception, antenna, channel changes, RX FIFO, and card-to-host CMD53 reads worked.</td></tr>
+            <tr><td>CMD52 register access worked</td><td>The card accepted SDIO commands and control traffic.</td></tr>
+            <tr><td>Association sometimes completed</td><td>The radio and much of the driver were functional; this was not a missing-firmware symptom.</td></tr>
+            <tr><td>Outgoing packets failed or timed out</td><td>The broken path was Linux host → SDIO data bus → RTL8723BS, specifically CMD53 writes.</td></tr>
+            <tr><td><code>ip addr</code>, shutdown, or NetworkManager could hang during aggressive diagnostics</td><td>A wedged kernel I/O path can make userspace networking appear frozen. Avoid live module reloads while investigating.</td></tr>
+          </tbody>
+        </table>
+
+        <p>The smallest legal one-byte CMD53 write failed with zero bytes transferred, so chopping packets into smaller sections was not a solution. CMD52 could write registers byte by byte, but could not reliably emulate the transmit FIFO.</p>
+      </section>
+
+      <section id="fix">
+        <h2>What the patch changes</h2>
+        <p>The patch is intentionally opt-in. It adds two module parameters to the in-kernel staging <code>r8723bs</code> driver:</p>
+        <ol>
+          <li><code>force_sdio_legacy=1</code> reads <code>SDIO_CCCR_SPEED</code>, clears <code>SDIO_SPEED_EHS</code>, sets <code>MMC_TIMING_LEGACY</code>, and applies a 25 MHz clock before any Realtek I/O.</li>
+          <li><code>force_cmd52_write32=1</code> sends aligned 32-bit register writes as four CMD52 bytes. Bulk firmware/data transfers and the TX FIFO still use CMD53.</li>
+        </ol>
+
+        <div class="callout warning">
+          <strong>Why the earlier 25 MHz experiment failed:</strong> setting the clock to 25 MHz after negotiation did not change the host's timing mode or clear the card's EHS bit. Frequency and signaling mode are separate settings.
+        </div>
+
+        <p>The small standalone patch documents the two decisive mode changes and targets the RTL8723BS source layout in Ubuntu kernel <code>7.0.0-28</code>. The recommended DKMS download contains the complete, exact driver source used for the final test, including the transfer-path corrections retained from our earlier experiments. Use the DKMS package if you want the tested result rather than treating the small patch as a complete replacement driver.</p>
+      </section>
+
+      <section id="install">
+        <h2>Installing the fix</h2>
+        <div class="callout danger">
+          <strong>Important safety rule:</strong> build and install the module for the next boot. Do not repeatedly unload/reload <code>r8723bs</code> on a live affected machine. A wedged SDIO interrupt path can panic the kernel. Keep a known-good kernel in the boot menu and use Bluetooth PAN or USB Ethernet as a recovery connection.
+        </div>
+
+        <h3>Recommended: install the tested DKMS package</h3>
+        <p><a href="https://github.com/dell/dkms">DKMS</a> means Dynamic Kernel Module Support. It keeps the patched driver source in <code>/usr/src</code> and automatically rebuilds the module when Ubuntu installs a new kernel with matching headers. This package contains the exact RTL8723BS source that passed the reboot and concurrent Wi-Fi stress test described below.</p>
+        <pre><code>tar -xzf r8723bs-miix3-dkms-1.1.tar.gz
+cd r8723bs-miix3-dkms-1.1
+sudo bash install.sh
+sudo reboot</code></pre>
+        <p>The installer obtains DKMS and the running kernel's headers using <code>apt</code>, builds and installs <code>r8723bs-miix3/1.1</code>, installs the two module options, runs <code>depmod</code>, and rebuilds the initramfs. It deliberately does not unload the live driver.</p>
+        <p><strong>SHA-256:</strong> <code class="breakable">8001b5facc144029cc1236d953a2f02b8026bcee039565ce08a5cd7e2d2e9064</code></p>
+
+        <h3>Confirm that the hardware matches</h3>
+        <pre><code>uname -r
+cat /sys/bus/sdio/devices/mmc0:0001:1/{vendor,device} 2&gt;/dev/null
+readlink -f /sys/bus/sdio/devices/mmc0:0001:1/driver
+dmesg | grep -Ei 'INT33BB|mmc0|8723bs'</code></pre>
+        <p>The tested combination reports vendor/device <code>0x024c</code>/<code>0xb723</code> and an ACPI Bay Trail host named <code>INT33BB:00</code>.</p>
+
+        <h3>Manual alternative: patch matching kernel source</h3>
+        <p>Install the headers and obtain source matching the kernel you intend to boot. From the root of that source tree:</p>
+        <pre><code>patch -p1 &lt; r8723bs-miix3-legacy-sdio.patch
+
+# Prepare the tree as required by your distribution, then build the driver.
+make -j2 M=drivers/staging/rtl8723bs modules</code></pre>
+        <p>Ubuntu's full source/config preparation varies by release. The important rule is that the resulting module's vermagic must match <code>uname -r</code> exactly:</p>
+        <pre><code>modinfo drivers/staging/rtl8723bs/r8723bs.ko | grep vermagic
+uname -r</code></pre>
+
+        <h3>Install a manually built module and its options</h3>
+        <pre><code>sudo install -D -m 0644 \
+  drivers/staging/rtl8723bs/r8723bs.ko \
+  /lib/modules/$(uname -r)/updates/r8723bs.ko
+
+sudo install -m 0644 r8723bs-miix3.conf \
+  /etc/modprobe.d/r8723bs-miix3.conf
+
+sudo depmod -a
+sudo update-initramfs -u
+sudo reboot</code></pre>
+
+        <h3>Connect normally</h3>
+        <pre><code>nmcli radio wifi on
+nmcli device wifi list ifname wlan0
+nmcli device wifi connect "YOUR_SSID" password "YOUR_WIFI_PASSWORD" ifname wlan0
+nmcli connection modify "YOUR_SSID" connection.autoconnect yes</code></pre>
+      </section>
+
+      <section id="kernel-updates">
+        <h2>What happens after a kernel update?</h2>
+        <p>Without DKMS, a newly installed kernel would boot its own unpatched in-tree <code>r8723bs</code> module, so this tablet could lose working Wi-Fi. With the package above registered, Ubuntu's kernel/header installation hooks ask DKMS to compile and install the fixed module for each new kernel automatically.</p>
+
+        <h3>Check before rebooting into the new kernel</h3>
+        <pre><code>dkms status
+modinfo -k "NEW_KERNEL_VERSION" -n r8723bs</code></pre>
+        <p>For the new kernel, <code>dkms status</code> should say <code>installed</code>, and <code>modinfo</code> should resolve to a path below <code>updates/dkms</code>. If the build did not run, first make sure the matching headers are installed, then ask DKMS to retry:</p>
+        <pre><code>sudo apt install linux-headers-NEW_KERNEL_VERSION
+sudo dkms autoinstall -k NEW_KERNEL_VERSION</code></pre>
+
+        <div class="callout warning">
+          <strong>Keep the previous kernel until the new one has passed a Wi-Fi test.</strong> DKMS automates rebuilding, but it cannot guarantee that a future kernel has not changed an internal driver API. If a build fails, continue booting the previous kernel from GRUB and adapt the source before trying the new kernel again. Do not run <code>apt autoremove</code> on the fallback kernel prematurely.
+        </div>
+        <p>On systems enforcing Secure Boot, a locally built unsigned module may also require Machine Owner Key enrollment or signing. The tested MIIX installation loaded the DKMS module successfully without that extra step.</p>
+      </section>
+
+      <section id="verify">
+        <h2>Verify the mode before stressing it</h2>
+        <pre><code>sudo dmesg | grep -E 'forced legacy SDIO|forcing 32-bit SDIO'
+sudo cat /sys/kernel/debug/mmc0/ios
+nmcli -f GENERAL.STATE,GENERAL.CONNECTION,IP4.ADDRESS,IP4.GATEWAY \
+  device show wlan0</code></pre>
+
+        <p>The MMC output should contain:</p>
+        <pre><code>clock:          25000000 Hz
+actual clock:  25000000 Hz
+bus width:     2 (4 bits)
+timing spec:   0 (legacy)
+signal voltage: 0 (3.30 V)</code></pre>
+
+        <p>If debugfs is not mounted, mount it first with <code>sudo mount -t debugfs none /sys/kernel/debug</code>.</p>
+
+        <h3>Controlled load test</h3>
+        <p>Replace the gateway below if your router uses another address. Run the ping and download together, then inspect counters and the kernel log.</p>
+        <pre><code>ping -I wlan0 -c 5000 -i 0.01 -s 1400 -q 192.168.0.1 &amp;
+curl --interface wlan0 -L -o /dev/null \
+  'https://speed.cloudflare.com/__down?bytes=67108864'
+wait
+
+paste -d' ' /sys/class/net/wlan0/statistics/{\
+rx_packets,tx_packets,rx_bytes,tx_bytes,tx_errors,tx_dropped}
+sudo dmesg | grep -Ei 'CMD53|timeout|crc|deauth|disassoc|mmc.*fail'</code></pre>
+      </section>
+
+      <section id="evidence">
+        <h2>Results on the repaired tablet</h2>
+        <div class="result-grid">
+          <div class="result"><strong>5,000 / 5,000</strong>full-sized ping replies during load</div>
+          <div class="result"><strong>0 errors, 0 drops</strong>in Wi-Fi transmit counters</div>
+          <div class="result"><strong>64 MiB at ~1.9 MB/s</strong>while the ping load ran concurrently</div>
+          <div class="result"><strong>16 MiB at ~2.2 MB/s</strong>separate upload test</div>
+        </div>
+        <p>The complete combined test was repeated after a clean reboot into the downloadable DKMS 1.1 build. Wi-Fi autoconnected, legacy timing was still active, all 5,000 replies arrived, the 64 MiB download completed at approximately 1.97 MB/s, RX/TX error counters remained zero, and the kernel log contained no SDIO CRC, timeout, or disconnect errors. Bluetooth remained connected as a separate control channel.</p>
+      </section>
+
+      <section id="failed-tests">
+        <h2>What did not solve it</h2>
+        <p>These tests are recorded so somebody with the same symptoms does not have to repeat weeks of elimination work.</p>
+
+        <details open>
+          <summary>Kernel, DMA, width, frequency, and transfer size</summary>
+          <ul>
+            <li>Stock Ubuntu 5.15 and a custom Ubuntu 7.0 driver failed in the same direction.</li>
+            <li>ADMA and forced PIO both failed.</li>
+            <li>Four-bit and one-bit SDIO both failed.</li>
+            <li>50 MHz, 25 MHz, and roughly 400 kHz all failed while high-speed timing remained negotiated.</li>
+            <li>One-byte CMD53 writes failed, ruling out only-large-transfer and alignment explanations.</li>
+          </ul>
+        </details>
+
+        <details>
+          <summary>Firmware and Windows-driver comparisons</summary>
+          <ul>
+            <li>The decompressed Linux firmware was byte-for-byte identical to the known-working RTL8723BS repository firmware: SHA-256 <code>a52b5a7be4841b4b2839eddf5122b3300a3610866abe4bb3c3c9e444c8ab7969</code>.</li>
+            <li>Lenovo's Windows driver version <code>3008.66.1013.2017</code> pads blocks and retries CMD53 transfers with short delays. Reproducing those behaviors did not recover a write.</li>
+            <li>A complete two-minute power-off with the charger disconnected did not change the failure.</li>
+          </ul>
+        </details>
+
+        <details>
+          <summary>CMD52 and addressing experiments</summary>
+          <ul>
+            <li>CMD52 was reliable for small control-register operations.</li>
+            <li>Replacing an entire TX FIFO write with bytewise CMD52 operations timed out partway through ordinary 84–92 byte frames.</li>
+            <li>Incrementing and fixed-address TX conventions did not fix native CMD53 writes.</li>
+            <li>Natural register read-back after selected failed writes was mixed and not reliable enough to diagnose bit patterns.</li>
+          </ul>
+        </details>
+
+        <details>
+          <summary>A diagnostic mistake worth avoiding</summary>
+          <p>One early test passed a stack variable to <code>sdio_memcpy_toio()</code>. The Bay Trail controller attempted to DMA-map it and produced an Oops in <code>dma_direct_map_sg</code>. That panic was caused by the diagnostic buffer, not by the final workaround or evidence of broken hardware. Buffers passed to DMA-capable MMC helpers must be DMA-safe.</p>
+        </details>
+      </section>
+
+      <section id="why-others-worked">
+        <h2>Why some older installations worked</h2>
+        <p>The exact-model Linux reports were not using the same setup we initially had. A 2016 MIIX guide used an external Realtek driver on Linux 4.5.1 plus a set of Bay Trail MMC patches. The driver repository explicitly lists the MIIX 3-830/1030 and says the Bay Trail SDIO patches are required. One patch constrains DMA latency to prevent deep CPU sleep states while an SDIO transfer is active.</p>
+        <p>Those reports do not explicitly say that they forced legacy timing, so it would be speculation to claim that they used this exact fix. They do show that the working systems differed in the MMC/ACPI host stack as well as the Realtek driver. A later Lubuntu report also shows successful RTL8723BS authentication and association on the same family of tablet.</p>
+        <p>On this tablet, the decisive A/B result was direct: high-speed timing produced write CRC errors; clearing EHS and selecting legacy timing made the same card, firmware, four-bit bus, and CMD53 data path reliable.</p>
+      </section>
+
+      <section id="sources">
+        <h2>References and downloads</h2>
+        <ul>
+          <li><a href="downloads/r8723bs-miix3-dkms-1.1.tar.gz">Tested RTL8723BS MIIX 3 DKMS package, version 1.1</a> (SHA-256 above)</li>
+          <li><a href="patches/r8723bs-miix3-legacy-sdio.patch">Core legacy-SDIO and 32-bit-register patch</a></li>
+          <li><a href="r8723bs-miix3.conf">Minimal modprobe configuration</a></li>
+          <li><a href="https://github.com/dell/dkms">DKMS project and documentation</a></li>
+          <li><a href="https://www.normalesup.org/~george/comp/linux_lenovo_miix3/">Nicolas George's Linux on the Lenovo MIIX 3 notes</a></li>
+          <li><a href="https://github.com/muhviehstah/r8723bs">muhviehstah/r8723bs, tested-device list and Bay Trail patches</a></li>
+          <li><a href="https://github.com/muhviehstah/r8723bs/blob/master/patches_4.5/0004-mmc-sdhci-acpi-Fix-device-hang-on-Intel-BayTrail.patch">Historical Bay Trail DMA-latency patch</a></li>
+          <li><a href="https://4pda.to/forum/index.php?showtopic=650808&amp;st=3840">Lubuntu 20.04-era report with RTL8723BS association logs</a></li>
+        </ul>
+        <p><strong>Last updated:</strong> 8 August 2026. This is a field report, not an upstream-supported Lenovo or Realtek fix. Keep recovery media and a fallback kernel available.</p>
+      </section>
+    </div>
+
+    <aside class="toc" aria-label="Table of contents">
+      <strong>On this page</strong>
+      <a href="#summary">Short version</a>
+      <a href="#symptoms">Symptoms</a>
+      <a href="#fix">The patch</a>
+      <a href="#install">Installation</a>
+      <a href="#kernel-updates">Kernel updates</a>
+      <a href="#verify">Verification</a>
+      <a href="#evidence">Test results</a>
+      <a href="#failed-tests">Failed tests</a>
+      <a href="#why-others-worked">Older reports</a>
+      <a href="#sources">References</a>
+    </aside>
+  </main>
+
+  <footer class="shell">
+    <p><a href="../">Back to Frovik.se</a> · Shared in the hope that the next MIIX owner has a shorter debugging session.</p>
+  </footer>
+</body>
+</html>

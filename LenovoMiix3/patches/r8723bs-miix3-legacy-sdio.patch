@@ -1,0 +1,139 @@
+From: MIIX 3-1030 field investigation
+Subject: [PATCH] staging: r8723bs: add opt-in legacy SDIO timing workaround
+
+The Lenovo MIIX 3-1030 (DMI board Martini, RTL8723BS 024c:b723 on
+INT33BB:00 UID 2) can negotiate SDIO high-speed mode successfully while
+all subsequent host-to-card CMD53 data writes fail with CRC errors.
+
+Add two opt-in workarounds:
+
+  force_sdio_legacy=1
+    Clear SDIO_SPEED_EHS before the first Realtek I/O operation and put
+    the host into MMC_TIMING_LEGACY at 25 MHz.
+
+  force_cmd52_write32=1
+    Use four CMD52 byte writes for aligned 32-bit register writes. Bulk
+    data and the transmit FIFO continue to use CMD53.
+
+This patch was developed and tested against Ubuntu's 7.0.0-28 kernel.
+It may need context changes for other kernel versions.
+
+diff --git a/drivers/staging/rtl8723bs/hal/sdio_ops.c b/drivers/staging/rtl8723bs/hal/sdio_ops.c
+index c9cb20c61a2b..8c46230ac874 100644
+--- a/drivers/staging/rtl8723bs/hal/sdio_ops.c
++++ b/drivers/staging/rtl8723bs/hal/sdio_ops.c
+@@ -7,6 +7,11 @@
+ #include <drv_types.h>
+ #include <rtl8723b_hal.h>
+ 
++static bool force_cmd52_write32;
++module_param(force_cmd52_write32, bool, 0644);
++MODULE_PARM_DESC(force_cmd52_write32,
++		 "Use four CMD52 byte writes instead of a CMD53 32-bit write");
++
+ /*  */
+ /*  Description: */
+ /*	The following mapping is for SDIO host local register space. */
+@@ -290,9 +295,11 @@ static s32 sdio_write32(struct intf_hdl *intfhdl, u32 addr, u32 val)
+ 
+ 	/*  4 bytes alignment */
+ 	shift = ftaddr & 0x3;
+-	if (shift == 0) {
++	if (shift == 0 && !force_cmd52_write32) {
+ 		sd_write32(intfhdl, ftaddr, val, &err);
+ 	} else {
++		if (force_cmd52_write32)
++			pr_info_once("r8723bs: forcing 32-bit SDIO writes through CMD52\n");
+ 		le_tmp = cpu_to_le32(val);
+ 		err = sd_cmd52_write(intfhdl, ftaddr, 4, (u8 *)&le_tmp);
+ 	}
+diff --git a/drivers/staging/rtl8723bs/os_dep/sdio_intf.c b/drivers/staging/rtl8723bs/os_dep/sdio_intf.c
+index d664e254912cf..61c2aba9bd830 100644
+--- a/drivers/staging/rtl8723bs/os_dep/sdio_intf.c
++++ b/drivers/staging/rtl8723bs/os_dep/sdio_intf.c
+@@ -7,6 +7,14 @@
+ #include <drv_types.h>
+ #include <hal_btcoex.h>
+ #include <linux/jiffies.h>
++#include <linux/mmc/card.h>
++#include <linux/mmc/host.h>
++#include <linux/mmc/sdio.h>
++
++static bool force_sdio_legacy;
++module_param(force_sdio_legacy, bool, 0444);
++MODULE_PARM_DESC(force_sdio_legacy,
++		 "Disable SDIO high speed and use legacy 25 MHz timing");
+ 
+ #ifndef dev_to_sdio_func
+ #define dev_to_sdio_func(d)     container_of(d, struct sdio_func, dev)
+@@ -33,6 +41,57 @@ static const struct dev_pm_ops rtw_sdio_pm_ops = {
+ 	.resume	= rtw_sdio_resume,
+ };
+ 
++static int rtw_force_sdio_legacy(struct sdio_func *func)
++{
++	struct mmc_host *host = func->card->host;
++	unsigned int old_quirks;
++	u8 speed;
++	u8 new_speed;
++	unsigned int old_clock;
++	unsigned int old_timing;
++	int err = 0;
++
++	if (!force_sdio_legacy)
++		return 0;
++
++	/* Reverse mmc/core/sdio.c:mmc_sdio_enable_hs() before Realtek I/O. */
++	sdio_claim_host(func);
++	speed = sdio_f0_readb(func, SDIO_CCCR_SPEED, &err);
++	if (err)
++		goto release;
++
++	new_speed = speed & ~SDIO_SPEED_EHS;
++	if (new_speed != speed) {
++		old_quirks = func->card->quirks;
++		func->card->quirks |= MMC_QUIRK_LENIENT_FN0;
++		sdio_f0_writeb(func, new_speed, SDIO_CCCR_SPEED, &err);
++		func->card->quirks = old_quirks;
++		if (err)
++			goto release;
++	}
++
++	old_clock = host->ios.clock;
++	old_timing = host->ios.timing;
++	host->ios.timing = MMC_TIMING_LEGACY;
++	host->ios.clock = min(host->f_max, 25000000U);
++	host->ops->set_ios(host, &host->ios);
++
++release:
++	sdio_release_host(func);
++	if (err) {
++		dev_err(&func->dev,
++			"failed to force legacy SDIO timing at CCCR_SPEED (%d)\n",
++			err);
++		return err;
++	}
++
++	dev_info(&func->dev,
++		 "forced legacy SDIO (CCCR_SPEED %#02x -> %#02x, timing %u -> %u, clock %u -> %u)\n",
++		 speed, new_speed, old_timing, host->ios.timing,
++		 old_clock, host->ios.clock);
++	return 0;
++}
++
+ static struct sdio_driver rtl8723bs_sdio_driver = {
+ 	.probe = rtw_drv_init,
+ 	.remove = rtw_dev_remove,
+@@ -349,6 +408,10 @@ static int rtw_drv_init(
+ 	struct adapter *if1 = NULL;
+ 	struct dvobj_priv *dvobj;
+ 
++	status = rtw_force_sdio_legacy(func);
++	if (status)
++		goto exit;
++
+ 	dvobj = sdio_dvobj_init(func);
+ 	if (!dvobj)
+ 		goto exit;
+-- 
+2.46.0
